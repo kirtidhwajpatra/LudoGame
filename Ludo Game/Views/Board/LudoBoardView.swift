@@ -3,11 +3,12 @@ import SwiftUI
 // MARK: - 1. Color Palette Extension
 // Matches the specific flat design colors from your Figma reference
 extension Color {
-    static let ludoGreen = Color(red: 100/255, green: 196/255, blue: 86/255)   // #64C456
-    static let ludoYellow = Color(red: 242/255, green: 222/255, blue: 74/255)  // #F2DE4A
-    static let ludoBlue = Color(red: 46/255, green: 108/255, blue: 209/255)    // #2E6CD1
-    static let ludoRed = Color(red: 235/255, green: 94/255, blue: 71/255)      // #EB5E47
-    static let ludoGrid = Color.gray.opacity(0.3)
+    static let ludoGreen = AppConstants.Colors.green
+    static let ludoYellow = AppConstants.Colors.yellow
+    static let ludoBlue = AppConstants.Colors.blue
+    static let ludoRed = AppConstants.Colors.red
+    static let ludoGrid = AppConstants.Colors.boardGrid
+    static let ludoPurple = AppConstants.Colors.background
 }
 
 // MARK: - 2. Custom Types (Fixed Ambiguity)
@@ -55,7 +56,8 @@ struct LudoBoardView: View {
                 }
             }
             .frame(width: boardSize, height: boardSize)
-            .background(Color.white)
+            .frame(width: boardSize, height: boardSize)
+            .background(Color.ludoPurple)
             // Optional: Shadow and Corner Radius for the whole board card
             .cornerRadius(12)
             .shadow(color: .black.opacity(0.2), radius: 10, x: 0, y: 5)
@@ -64,24 +66,46 @@ struct LudoBoardView: View {
 
     // Helper to map BoardPosition to CGPoint on the 15x15 grid
     func position(for token: Token, cellSize: CGFloat) -> CGPoint {
-        let (x,y): (Int, Int)
-        
         switch token.position {
         case .yard:
-            // Using ID hash or index in list to determine slot 0-3.
+            // Custom visual grouping for Yard (Extra Close and Center)
+            // Layout: 6x6 area. Center is 3.0.
+            // visual offsets: 2.2 and 3.8 (Distance 1.6).
             let playerTokens = gameEngine.state.tokens.filter { $0.player == token.player }
-            let slot = playerTokens.firstIndex(where: { $0.id == token.id }) ?? 0
-            (x, y) = LudoBoardGeometry.getYardCoordinate(player: token.player, slot: slot)
+            let index = playerTokens.firstIndex(where: { $0.id == token.id }) ?? 0
+            
+            // Map index 0..3 to offsets
+            // 0: (2.2, 2.2), 1: (3.8, 2.2)
+            // 2: (2.2, 3.8), 3: (3.8, 3.8)
+            let safeIndex = max(0, min(index, 3))
+            
+            let dx: CGFloat = (safeIndex % 2 == 0) ? 2.2 : 3.8
+            let dy: CGFloat = (safeIndex < 2) ? 2.2 : 3.8
+            
+            // Base Offsets (Top-Left of Yard)
+            let bx: CGFloat
+            let by: CGFloat
+            
+            switch token.player {
+            case .green:  (bx, by) = (0, 0)
+            case .yellow: (bx, by) = (9, 0)
+            case .red:    (bx, by) = (0, 9)
+            case .blue:   (bx, by) = (9, 9)
+            }
+            
+            // Return precise point
+            return CGPoint(
+                x: (bx + dx) * cellSize,
+                y: (by + dy) * cellSize
+            )
             
         case .track, .homePath, .home:
-            (x, y) = LudoBoardGeometry.getCoordinate(for: token.position, player: token.player)
+            let (x, y) = LudoBoardGeometry.getCoordinate(for: token.position, player: token.player)
+            return CGPoint(
+                x: CGFloat(x) * cellSize + cellSize / 2,
+                y: CGFloat(y) * cellSize + cellSize / 2
+            )
         }
-        
-        // Convert Grid (0-14, 0-14) to Points. 0,0 is Top Left.
-        return CGPoint(
-            x: CGFloat(x) * cellSize + cellSize / 2,
-            y: CGFloat(y) * cellSize + cellSize / 2
-        )
     }
 }
 
@@ -91,29 +115,70 @@ struct BoardGridLayer: View {
     let cellSize: CGFloat
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Top Section
-            HStack(spacing: 0) {
-                CornerYard(color: .ludoGreen, cellSize: cellSize)
-                VerticalTrack(playerColor: .ludoYellow, cellSize: cellSize, isTop: true)
-                CornerYard(color: .ludoYellow, cellSize: cellSize)
+        ZStack {
+            VStack(spacing: 0) {
+                // Top Section
+                HStack(spacing: 0) {
+                    CornerYard(color: .ludoGreen, cellSize: cellSize)
+                    VerticalTrack(playerColor: .ludoYellow, cellSize: cellSize, isTop: true)
+                    CornerYard(color: .ludoYellow, cellSize: cellSize)
+                }
+                
+                // Middle Section
+                HStack(spacing: 0) {
+                    HorizontalTrack(playerColor: .ludoGreen, cellSize: cellSize, isLeft: true)
+                    CenterHome(cellSize: cellSize)
+                    HorizontalTrack(playerColor: .ludoBlue, cellSize: cellSize, isLeft: false)
+                }
+                
+                // Bottom Section
+                HStack(spacing: 0) {
+                    CornerYard(color: .ludoRed, cellSize: cellSize)
+                    VerticalTrack(playerColor: .ludoRed, cellSize: cellSize, isTop: false)
+                    CornerYard(color: .ludoBlue, cellSize: cellSize)
+                }
             }
+            .border(Color.black.opacity(0.1), width: 1)
             
-            // Middle Section
-            HStack(spacing: 0) {
-                HorizontalTrack(playerColor: .ludoGreen, cellSize: cellSize, isLeft: true)
-                CenterHome(cellSize: cellSize)
-                HorizontalTrack(playerColor: .ludoBlue, cellSize: cellSize, isLeft: false)
-            }
+            // Turn Arrows Overlay
+            // Positioned specifically at the turns into Home Runs
+            // 1. Green (Left): Arrow pointing RIGHT into Green Home (Row 7, Col 1-5).
+            //    Entry is from Col 6 (White) into Col 5 (End of home run? No).
+            //    Green Home Run: (1,7) to (5,7).
+            //    Entry is from (6,6) [Top of Left-Horizontal] -> Turn into (?
+            //    Green path: Travels UP col 6. Arrives at (6,6).
+            //    Turns RIGHT into Home (7,7 - Center). No.
+            //    Let's check Geometry.
+            //    Green Path: (6,0)..(6,5) [Up].
+            //    Usually Green Home Entry is at (0,7)?
+            //    If I am Green, I start at (1,6). I go around.
+            //    I approach Green Home from (0,6) ?
+            //    (0,6) -> (0,7) -> Home Run.
+            //    The arrow should be at (0,6) pointing into (1,7)?
             
-            // Bottom Section
-            HStack(spacing: 0) {
-                CornerYard(color: .ludoRed, cellSize: cellSize)
-                VerticalTrack(playerColor: .ludoRed, cellSize: cellSize, isTop: false)
-                CornerYard(color: .ludoBlue, cellSize: cellSize)
-            }
+            //    Reference image shows Arrow bridging a White Cell and a Yellow Cell.
+            //    Let's place them at standard Ludo "Turn" spots.
+            //    Yellow Home Entry: (6,0) -> (7,0) ?
+            //    Yellow Home Path starts at (7,1).
+            //    Entrance is from (6, ?)
+            //    Yellow approaches from Col 6, Top.
+            //    Specific cell: (6,0) is white. (7,0) is top-middle (Start).
+            //    If purely visual matching:
+            //    Yellow Arrow: At (6,0) (Top Right of Green Quad/Top Left of Vertical Strip).
+            //                  Points East? Or curves into South.
+            
+            //    Let's assume standard visual placement:
+            //    Green Turn: At (0,6). Points Right.
+            //    Yellow Turn: At (6,0). Points Down.
+            //    Blue Turn: At (14,8). Points Left.
+            //    Red Turn: At (8,14). Points Up.
+            
+            let arrowSize = cellSize * 2.0 // Spanning 2 cells visually?
+            // The arrow shape is 27x33 (approx 0.8 aspect).
+            // Let's place it at the junction.
+            
+            TurnArrowLayer(cellSize: cellSize)
         }
-        .border(Color.black.opacity(0.1), width: 1)
     }
 }
 
@@ -127,21 +192,22 @@ struct CornerYard: View {
             // Base Color
             Rectangle().fill(color)
             
-            // White Container (The "Yard" area)
+            // White Container (The "Yard" area) - Rounded Square
             RoundedRectangle(cornerRadius: cellSize)
                 .fill(Color.white)
-                .padding(cellSize * 0.8)
+                .padding(cellSize * 0.7) // Less padding to make the white area larger
             
-            // The 4 Token Placeholders
-            // Arranged in a 2x2 grid
-            VStack(spacing: cellSize * 0.8) {
-                HStack(spacing: cellSize * 0.8) {
-                    TokenPlaceholder(color: color, size: cellSize)
-                    TokenPlaceholder(color: color, size: cellSize)
+            // The 4 Token Placeholders (Grouped Extra Close & Center)
+            // Base Size = 1.5. Center Distance = 1.6.
+            // Spacing = 1.6 - 1.5 = 0.1.
+            VStack(spacing: cellSize * 0.1) {
+                HStack(spacing: cellSize * 0.1) {
+                    TokenPlaceholder(color: color, size: cellSize * 1.5)
+                    TokenPlaceholder(color: color, size: cellSize * 1.5)
                 }
-                HStack(spacing: cellSize * 0.8) {
-                    TokenPlaceholder(color: color, size: cellSize)
-                    TokenPlaceholder(color: color, size: cellSize)
+                HStack(spacing: cellSize * 0.1) {
+                    TokenPlaceholder(color: color, size: cellSize * 1.5)
+                    TokenPlaceholder(color: color, size: cellSize * 1.5)
                 }
             }
         }
@@ -149,17 +215,21 @@ struct CornerYard: View {
     }
 }
 
+
 struct TokenPlaceholder: View {
     let color: Color
     let size: CGFloat
     
     var body: some View {
-        Circle()
-            .fill(color.opacity(0.3)) // Lighter shade for empty slot
-            .frame(width: size * 1.0, height: size * 1.0)
-            .overlay(
-                Circle().stroke(color, lineWidth: 2)
-            )
+        ZStack {
+            Circle()
+                .fill(Color.clear)
+                .overlay(
+                    Circle()
+                        .stroke(color, lineWidth: max(1.8, size * 0.07))
+                )
+                .frame(width: size, height: size)
+        }
     }
 }
 
@@ -192,12 +262,12 @@ struct VerticalTrack: View {
         if isTop {
             // Top Track (Yellow)
             if col == 1 && row > 0 { return .colored }
-            if col == 2 && row == 1 { return .arrow(direction: .down) } // Start
+            if col == 2 && row == 1 { return .colored } // Start (was arrow)
             if col == 0 && row == 2 { return .star } // Safe
         } else {
             // Bottom Track (Red)
             if col == 1 && row < 5 { return .colored }
-            if col == 0 && row == 4 { return .arrow(direction: .up) } // Start
+            if col == 0 && row == 4 { return .colored } // Start (was arrow)
             if col == 2 && row == 3 { return .star } // Safe
         }
         return .normal
@@ -233,12 +303,12 @@ struct HorizontalTrack: View {
         if isLeft {
             // Left Track (Green)
             if row == 1 && col > 0 { return .colored }
-            if row == 0 && col == 1 { return .arrow(direction: .right) } // Start
+            if row == 0 && col == 1 { return .colored } // Start (was arrow)
             if row == 2 && col == 2 { return .star } // Safe
         } else {
             // Right Track (Blue)
             if row == 1 && col < 5 { return .colored }
-            if row == 2 && col == 4 { return .arrow(direction: .left) } // Start
+            if row == 2 && col == 4 { return .colored } // Start (was arrow)
             if row == 0 && col == 3 { return .star } // Safe
         }
         return .normal
@@ -254,29 +324,37 @@ struct BoardCell: View {
     var body: some View {
         ZStack {
             // Background
+            // Start cells (arrows) and Home Path cells are colored
             Rectangle()
-                .fill(type == .colored ? color : Color.white)
+                .fill(shouldBeColored ? color : Color.white)
                 .border(Color.ludoGrid, width: 0.5)
             
             // Icons
             switch type {
             case .star:
-                Image(systemName: "star.fill") // filled star is more visible
+                Image(systemName: "star") // Outline star as per reference usually, or light grey fill
                     .resizable()
                     .scaledToFit()
-                    .foregroundColor(Color.gray.opacity(0.4))
+                    .foregroundColor(AppConstants.Colors.star)
                     .padding(4)
             case .arrow(let direction):
                 arrowIcon(direction)
                     .resizable()
                     .scaledToFit()
-                    .foregroundColor(color)
+                    .foregroundColor(.white) // White arrow on colored background
                     .padding(2)
             case .normal, .colored:
                 EmptyView()
             }
         }
         .frame(width: cellSize, height: cellSize)
+    }
+    
+    var shouldBeColored: Bool {
+        switch type {
+        case .colored, .arrow: return true
+        default: return false
+        }
     }
     
     func arrowIcon(_ direction: ArrowDirection) -> Image {
@@ -331,4 +409,5 @@ struct CenterHome: View {
         }
         .frame(width: cellSize * 3, height: cellSize * 3)
     }
+    
 }

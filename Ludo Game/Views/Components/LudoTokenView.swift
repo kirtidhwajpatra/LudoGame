@@ -6,26 +6,34 @@ struct LudoTokenView: View {
     
     var body: some View {
         ZStack {
-            Circle()
-                .fill(Color.white)
-                .frame(width: cellSize * 0.9, height: cellSize * 0.9)
-                .shadow(radius: 2, y: 2)
+            // Pure Emoji Design (Clean, No Background)
+            // Dynamic Sizing based on location
+            let isYard = (token.position == .yard)
+            let scale: CGFloat = isYard ? 1.5 : 1.1
             
-            Circle()
-                .fill(token.player.color)
-                .frame(width: cellSize * 0.7, height: cellSize * 0.7)
+            Text(emoji(for: token.player))
+                .font(.system(size: cellSize * scale))
+                .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 2) // Subtle lift
             
-            // Highlight/Bevel
-            Circle()
-                .strokeBorder(Color.white.opacity(0.4), lineWidth: 2)
-                .frame(width: cellSize * 0.6)
-            
+            // Minimal Status Indicator
             if token.hasCompleted {
-                Image(systemName: "checkmark")
-                    .foregroundColor(.white)
-                    .font(.system(size: cellSize * 0.4, weight: .bold))
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundColor(.green)
+                    .background(Circle().fill(Color.white))
+                    .font(.system(size: cellSize * 0.3))
+                    .offset(x: cellSize * 0.3, y: -cellSize * 0.3)
             }
         }
-        // Selection Pulse logic could go here
     }
+    
+    func emoji(for player: Player) -> String {
+        switch player {
+        case .green: return "🐸"
+        case .yellow: return "🐥"
+        case .blue: return "🐬"
+        case .red: return "🦀"
+        }
+    }
+        // Selection Pulse logic could go here
+    
 }

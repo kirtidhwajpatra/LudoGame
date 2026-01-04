@@ -178,15 +178,27 @@ struct LudoBoardGeometry {
     }
     
     static func getYardCoordinate(player: Player, slot: Int) -> (Int, Int) {
+        // Base coordinates for the 6x6 Yard Top-Left corner
         let base: (Int, Int)
         switch player {
-        case .green: base = (2, 2)
-        case .yellow: base = (11, 2)
-        case .red: base = (2, 11)
-        case .blue: base = (11, 11)
+        case .green: base = (0, 0)
+        case .yellow: base = (9, 0)
+        case .red: base = (0, 9)
+        case .blue: base = (9, 9)
         }
-        let dx = slot % 2
-        let dy = slot / 2
-        return (base.0 + dx, base.1 + dy)
+        
+        // Spread the slots to (1,1), (1,4), (4,1), (4,4) relative to base
+        // Visual Layout:
+        // 0 1
+        // 2 3
+        let offsets = [
+            (1, 1), (4, 1),
+            (1, 4), (4, 4)
+        ]
+        
+        let safeSlot = max(0, min(slot, 3))
+        let offset = offsets[safeSlot]
+        
+        return (base.0 + offset.0, base.1 + offset.1)
     }
 }

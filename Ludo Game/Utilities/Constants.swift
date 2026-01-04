@@ -7,15 +7,17 @@ struct AppConstants {
         static let offWhite = Color(hex: "F5F5F7")
         
         // Player Colors
-        static let green = Color(hex: "00E676") // Vibrant Green
-        static let yellow = Color(hex: "FFEA00") // Vibrant Yellow
-        static let blue = Color(hex: "2979FF") // Vibrant Blue
-        static let red = Color(hex: "FF1744") // Vibrant Red
+        static let green = Color(hex: "4CD964") // Vibrant Green
+        static let yellow = Color(hex: "FFCC00") // Vibrant Yellow
+        static let blue = Color(hex: "007AFF") // Vibrant Blue
+        static let red = Color(hex: "FF3B30") // Vibrant Red
         
         // UI Elements
         static let boardBackground = Color.white
         static let boardGrid = Color.black.opacity(0.1)
         static let shadow = Color.black.opacity(0.2)
+        static let arrow = Color.gray.opacity(0.6)
+        static let star = Color.gray.opacity(0.6)
     }
     
     struct Dimensions {
