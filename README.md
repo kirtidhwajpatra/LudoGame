@@ -35,8 +35,6 @@ LudoGame implements turn-based mechanics, piece movement rules, and player inter
   - Tests/         — unit and integration tests (when present)
 - README.md        — this document
 
-(Adjust paths if the repository uses a different layout.)
-
 ## How to run
 Prerequisites
 - macOS with Xcode (recent stable release)
