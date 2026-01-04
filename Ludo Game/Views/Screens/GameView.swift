@@ -60,39 +60,48 @@ struct GameView: View {
             .blur(radius: gameEngine.state.winner != nil ? 10 : 0)
             
             // Win Overlay
+            // Win Overlay (Spotlight & Confetti)
             if let winner = gameEngine.state.winner {
-                Color.black.opacity(0.4).ignoresSafeArea()
-                
-                VStack(spacing: 20) {
-                    Text("Winner!")
-                        .font(.system(size: 40, weight: .bold, design: .rounded))
-                        .foregroundColor(.white)
+                ZStack {
+                    // 1. Spotlight Dimming
+                    Color.black.opacity(0.7).ignoresSafeArea()
+                        .transition(.opacity)
                     
-                    Text(winner.name)
-                        .font(.system(size: 30, weight: .bold, design: .rounded))
-                        .foregroundColor(winner.color)
-                        .padding()
-                        .background(Color.white)
-                        .cornerRadius(16)
+                    // 2. Confetti
+                    ConfettiView()
                     
-                    Button(action: {
-                        gameEngine.startGame(playerCount: gameEngine.state.players.count)
-                    }) {
-                        Text("Play Again")
-                            .font(.headline)
+                    // 3. Elegant Modal
+                    VStack(spacing: 24) {
+                        Text("Victory!")
+                            .font(.system(size: 48, weight: .bold, design: .serif))
                             .foregroundColor(.white)
-                            .padding()
-                            .frame(width: 200)
-                            .background(AppConstants.Colors.background)
-                            .cornerRadius(16)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .stroke(Color.white, lineWidth: 2)
-                            )
+                            .shadow(color: .white.opacity(0.5), radius: 10)
+                        
+                        Text(winner.name + " Wins")
+                            .font(.system(size: 24, weight: .medium, design: .rounded))
+                            .foregroundColor(winner.color)
+                            .padding(.horizontal, 24)
+                            .padding(.vertical, 12)
+                            .background(Capsule().fill(Color.white))
+                        
+                        Button(action: {
+                            withAnimation {
+                                gameEngine.startGame(playerCount: gameEngine.state.players.count)
+                            }
+                        }) {
+                            Text("New Game")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .padding()
+                                .frame(width: 160)
+                                .background(Capsule().stroke(Color.white, lineWidth: 2))
+                                .contentShape(Capsule())
+                        }
+                        .padding(.top, 20)
                     }
+                    .transition(.scale(scale: 0.9).combined(with: .opacity))
                 }
-                .transition(.scale)
-                .zIndex(1)
+                .zIndex(2)
             }
         }
         .animation(.spring(), value: gameEngine.state.winner)

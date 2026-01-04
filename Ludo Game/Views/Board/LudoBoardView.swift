@@ -40,12 +40,26 @@ struct LudoBoardView: View {
             
             ZStack {
                 // Layer 1: The Board Design
-                BoardGridLayer(cellSize: cellSize)
+                BoardGridLayer(cellSize: cellSize, activePlayer: gameEngine.state.currentPlayer)
+                
+                // Layer 1.5: Path Previews (Intelligent Guidance)
+                PathPreviewLayer(
+                    previews: gameEngine.state.previewPaths,
+                    cellSize: cellSize,
+                    player: gameEngine.state.currentPlayer
+                )
                 
                 // Layer 2: Tokens
                 // (Using your existing logic for tokens)
                 ForEach(gameEngine.state.tokens) { token in
-                    LudoTokenView(token: token, cellSize: cellSize)
+                    LudoTokenView(
+                        token: token,
+                        cellSize: cellSize,
+                        isMovable: gameEngine.state.validMoveTokenIds.contains(token.id),
+                        shouldDim: !gameEngine.state.validMoveTokenIds.isEmpty && !gameEngine.state.validMoveTokenIds.contains(token.id),
+                        isCaptured: gameEngine.state.capturedTokenId == token.id,
+                        isWinner: gameEngine.state.winner == token.player
+                    )
                         .position(position(for: token, cellSize: cellSize))
                         .onTapGesture {
                             if gameEngine.state.diceValue != nil {
@@ -113,15 +127,16 @@ struct LudoBoardView: View {
 
 struct BoardGridLayer: View {
     let cellSize: CGFloat
+    let activePlayer: Player
     
     var body: some View {
         ZStack {
             VStack(spacing: 0) {
                 // Top Section
                 HStack(spacing: 0) {
-                    CornerYard(color: .ludoGreen, cellSize: cellSize)
+                    CornerYard(color: .ludoGreen, cellSize: cellSize, isActive: activePlayer == .green)
                     VerticalTrack(playerColor: .ludoYellow, cellSize: cellSize, isTop: true)
-                    CornerYard(color: .ludoYellow, cellSize: cellSize)
+                    CornerYard(color: .ludoYellow, cellSize: cellSize, isActive: activePlayer == .yellow)
                 }
                 
                 // Middle Section
@@ -133,9 +148,9 @@ struct BoardGridLayer: View {
                 
                 // Bottom Section
                 HStack(spacing: 0) {
-                    CornerYard(color: .ludoRed, cellSize: cellSize)
+                    CornerYard(color: .ludoRed, cellSize: cellSize, isActive: activePlayer == .red)
                     VerticalTrack(playerColor: .ludoRed, cellSize: cellSize, isTop: false)
-                    CornerYard(color: .ludoBlue, cellSize: cellSize)
+                    CornerYard(color: .ludoBlue, cellSize: cellSize, isActive: activePlayer == .blue)
                 }
             }
             .border(Color.black.opacity(0.1), width: 1)
@@ -186,6 +201,7 @@ struct BoardGridLayer: View {
 struct CornerYard: View {
     let color: Color
     let cellSize: CGFloat
+    let isActive: Bool
     
     var body: some View {
         ZStack {
@@ -212,6 +228,9 @@ struct CornerYard: View {
             }
         }
         .frame(width: cellSize * 6, height: cellSize * 6)
+        .opacity(isActive ? 1.0 : 0.6)
+        .scaleEffect(isActive ? 1.02 : 1.0)
+        .animation(.easeInOut(duration: 0.5), value: isActive)
     }
 }
 
@@ -323,6 +342,9 @@ struct BoardCell: View {
     
     var body: some View {
         ZStack {
+            // Background
+            // Start cells (arrows) and Home Path cells are colored
+            // Background
             // Background
             // Start cells (arrows) and Home Path cells are colored
             Rectangle()

@@ -8,6 +8,9 @@ struct GameState {
     var tokens: [Token] = []
     var winner: Player? = nil
     var waitingForMove: Bool = false
+    var validMoveTokenIds: Set<UUID> = []
+    var previewPaths: [UUID: [BoardPosition]] = [:]
+    var capturedTokenId: UUID? = nil
     
     var currentPlayer: Player {
         guard !players.isEmpty else { return .green }

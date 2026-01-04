@@ -7,6 +7,8 @@ enum BoardPosition: Equatable, Hashable {
     case home
 }
 
+
+
 struct Token: Identifiable, Equatable, Hashable {
     let id: UUID
     let player: Player
