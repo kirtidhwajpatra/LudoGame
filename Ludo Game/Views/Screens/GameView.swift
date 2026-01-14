@@ -51,15 +51,12 @@ struct GameView: View {
                         gameEngine.rollDice()
                     }
                 )
-                .disabled(gameEngine.state.diceValue != nil && !gameEngine.state.waitingForMove) 
-                // Logic: Disable if value exists BUT we need to move? No, if value exists, we wait for board tap.
-                // So disable roll button if value is present.
+                .disabled(gameEngine.state.diceValue != nil && !gameEngine.state.waitingForMove)
                 .opacity((gameEngine.state.diceValue != nil) ? 0.6 : 1.0)
                 .padding(.bottom, 40)
             }
             .blur(radius: gameEngine.state.winner != nil ? 10 : 0)
             
-            // Win Overlay
             // Win Overlay (Spotlight & Confetti)
             if let winner = gameEngine.state.winner {
                 ZStack {

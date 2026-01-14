@@ -156,42 +156,7 @@ struct BoardGridLayer: View {
             .border(Color.black.opacity(0.1), width: 1)
             
             // Turn Arrows Overlay
-            // Positioned specifically at the turns into Home Runs
-            // 1. Green (Left): Arrow pointing RIGHT into Green Home (Row 7, Col 1-5).
-            //    Entry is from Col 6 (White) into Col 5 (End of home run? No).
-            //    Green Home Run: (1,7) to (5,7).
-            //    Entry is from (6,6) [Top of Left-Horizontal] -> Turn into (?
-            //    Green path: Travels UP col 6. Arrives at (6,6).
-            //    Turns RIGHT into Home (7,7 - Center). No.
-            //    Let's check Geometry.
-            //    Green Path: (6,0)..(6,5) [Up].
-            //    Usually Green Home Entry is at (0,7)?
-            //    If I am Green, I start at (1,6). I go around.
-            //    I approach Green Home from (0,6) ?
-            //    (0,6) -> (0,7) -> Home Run.
-            //    The arrow should be at (0,6) pointing into (1,7)?
-            
-            //    Reference image shows Arrow bridging a White Cell and a Yellow Cell.
-            //    Let's place them at standard Ludo "Turn" spots.
-            //    Yellow Home Entry: (6,0) -> (7,0) ?
-            //    Yellow Home Path starts at (7,1).
-            //    Entrance is from (6, ?)
-            //    Yellow approaches from Col 6, Top.
-            //    Specific cell: (6,0) is white. (7,0) is top-middle (Start).
-            //    If purely visual matching:
-            //    Yellow Arrow: At (6,0) (Top Right of Green Quad/Top Left of Vertical Strip).
-            //                  Points East? Or curves into South.
-            
-            //    Let's assume standard visual placement:
-            //    Green Turn: At (0,6). Points Right.
-            //    Yellow Turn: At (6,0). Points Down.
-            //    Blue Turn: At (14,8). Points Left.
-            //    Red Turn: At (8,14). Points Up.
-            
-            let arrowSize = cellSize * 2.0 // Spanning 2 cells visually?
-            // The arrow shape is 27x33 (approx 0.8 aspect).
-            // Let's place it at the junction.
-            
+            // Positioned at the specific turns where players enter their Home Runs.
             TurnArrowLayer(cellSize: cellSize)
         }
     }
@@ -342,9 +307,6 @@ struct BoardCell: View {
     
     var body: some View {
         ZStack {
-            // Background
-            // Start cells (arrows) and Home Path cells are colored
-            // Background
             // Background
             // Start cells (arrows) and Home Path cells are colored
             Rectangle()

@@ -8,7 +8,7 @@ class LudoGameEngine: ObservableObject {
     private let trackLength = 52
     
     // Starting positions on the main track for each player
-    // Green: 0, Yellow: 13, Blue: 26, Red: 39 (Standard Ludo offsets)
+    // Green: 0, Yellow: 13, Blue: 26, Red: 39
     private func startOffset(for player: Player) -> Int {
         switch player {
         case .green: return 0
@@ -18,7 +18,8 @@ class LudoGameEngine: ObservableObject {
         }
     }
     
-    // Initialize Game
+    // MARK: - Game Lifecycle
+    
     func startGame(playerCount: Int) {
         let selectedPlayers = Array(Player.allCases.prefix(playerCount))
         var initialTokens: [Token] = []
@@ -40,7 +41,8 @@ class LudoGameEngine: ObservableObject {
         )
     }
     
-    // Roll Dice Logic
+    // MARK: - Actions
+    
     func rollDice() {
         guard !state.isRolling && !state.waitingForMove else { return }
         
@@ -93,29 +95,15 @@ class LudoGameEngine: ObservableObject {
             return roll == 6
         case .track(let index):
             let relativeIndex = getRelativeIndex(for: index, player: token.player)
-            // track end is 50 (51st step is entry to home path)
-            // Total steps from start to home is 51 (0..50) + 6 steps home path = 57 steps?
-            // Standard Ludo: 52 cells. one lap is 52.
-            // Player starts at offset X. Goes around. Enters home path just before X.
-            // Home path entry is at (X - 1 + 52) % 52.
             
-            // Re-evaluating standard Ludo board:
-            // 52 common cells.
-            // Player Start Index for Green is 0 (or 2 depending on board variant, assuming 0 for simplicity).
-            // Player enters home straight at cell 50 relative to their start (0-based) ??
-            // Let's use relative index 0-51 (one lap).
-            // Player enters Home Path after relative index 50.
-            
+            // Ludo Track Logic:
+            // - Track length is 52 cells (0-51).
+            // - Players enter their Home Path after relative index 50.
             if relativeIndex + roll > 50 {
                 let stepsIntoHome = (relativeIndex + roll) - 50
-                // stepsIntoHome: 1 means index 0 of MovePath?
-                // let's say roll takes you 1 step past 50. That is HomePath[0].
-                // Max relative index is 50.
-                // 50 + 1 => HomePath[0].
-                // HomePath has 0..5 (length 6). 5 is Home Goal.
-                
+                // stepsIntoHome: 1 corresponds to HomePath index 0
                 let targetHomeIndex = stepsIntoHome - 1
-                return targetHomeIndex <= 5 // 5 is Home
+                return targetHomeIndex <= 5 // 5 is the Home Goal
             }
             return true
         case .homePath(let index):
@@ -139,14 +127,6 @@ class LudoGameEngine: ObservableObject {
         state.waitingForMove = false // Prevent other interactions
         state.validMoveTokenIds = [] // Stop highlighting
         state.previewPaths = [:] // Clear previews
-        // We rely on isRolling=true or similar to block dice, currently isRolling=false.
-        // We should probably flag that an animation is busy to prevent re-rolling?
-        // Actually, current `rollDice` checks `!state.waitingForMove`.
-        // But `waitingForMove` is set to TRUE when we await selection.
-        // Once selected, we set it to FALSE here.
-        // If we set it to false, user might click "Roll"?
-        // `rollDice` checks `!state.isRolling`.
-        // Let's rely on the fact we won't show the dice control or next turn until we are done.
         
         
         animateMovement(tokenIndex: index, path: path) { [weak self] in
@@ -229,74 +209,11 @@ class LudoGameEngine: ObservableObject {
         }
     }
     
-    // logic after movement is done
-    private func finalizeMove(tokenIndex: Int) {
-        let currentToken = state.tokens[tokenIndex]
-        
-        // 2. Handle Collisions (only on track)
-        if case .track(let newIndex) = currentToken.position {
-            if let collisionIndex = state.tokens.firstIndex(where: {
-                if case .track(let tIndex) = $0.position {
-                     return tIndex == newIndex && $0.player != currentToken.player
-                }
-                return false
-            }) {
-                // Check if safe zone
-                if !isSafeZone(newIndex) {
-                    // Capture!
-                    var enemyToken = state.tokens[collisionIndex]
-                    withAnimation(.spring()) {
-                        enemyToken.position = .yard
-                    }
-                    state.tokens[collisionIndex] = enemyToken
-                    HapticsManager.shared.playRigidImpact()
-                }
-            }
-        }
-        
-        
-        state.diceValue = nil
-        
-        // 3. Check Win Condition
-        if state.tokens.filter({ $0.player == state.currentPlayer && $0.hasCompleted }).count == 4 {
-            state.winner = state.currentPlayer
-            HapticsManager.shared.playSuccess()
-            return
-        }
-        
-        // 4. Next Turn Logic
-        // We need to know what the original ROLL was to determine bonus.
-        // But diceValue was cleared? 
-        // Logic: if currentToken.position changed significantly? 
-        // We can check if it was a 6. 
-        // Issue: We cleared diceValue above. 
-        // Better to check roll BEFORE clearing.
-        // Wait, I don't have access to 'roll' here easily unless I pass it or check logic.
-        // Simplification: Standard Ludo rules, 6 gives repeat turn.
-        // I'll defer `state.diceValue = nil` until I check.
-        // But `state.diceValue` in `moveToken` (original) was used.
-        // Let's modify `moveToken` to capture roll to pass to finalize?
-        // Or just check logic: If we moved from Yard, it WAS a 6.
-        // If we moved 6 steps...
-        // Actually, let's keep it simple: Pass `shouldSwitchTurn` bool?
-        // Or just let `moveToken` handle the `nextTurn` call?
-        // Move `finalizeMove` logic back into `moveToken`? No, it's async completion.
-        
-        // Let's re-read the original `moveToken`:
-        // if roll != 6 { nextTurn() }
-        
-        // I will modify animateMovement to take a completion block, and handle nextTurn logic there.
-        // But I need `roll` value. 
-        // I will capture `roll` in the closure in `moveToken`.
-        
-        // This function `finalizeMove` is defined inside class? 
-        // I'll implement `finalizeMove(tokenIndex: Int, roll: Int)`
-    }
+
     
     private func finalizeMove(tokenIndex: Int, roll: Int) {
         let currentToken = state.tokens[tokenIndex]
         
-        // Handle Collisions (only on track)
         // Handle Collisions (only on track)
         if case .track(let newIndex) = currentToken.position {
             if let collisionIndex = state.tokens.firstIndex(where: {
@@ -357,17 +274,7 @@ class LudoGameEngine: ObservableObject {
     }
     
     // Helper: Safe Zones (Star cells)
-    // Standard Ludo Safe Zones: 0, 8, 13, 21, 26, 34, 39, 47 (approximate common rules)
-    // Adjusting based on standard board:
-    // Green Start: 0. Safe.
-    // Yellow Start: 13. Safe.
-    // Blue Start: 26. Safe.
-    // Red Start: 39. Safe.
-    // Plus the ones 8 steps ahead? Usually standard Ludo has safe spots at 1, 9... wait.
-    // Let's stick to the 4 start points + maybe safe points are visual. 
-    // The design shows stars at specific places.
-    // Looking at Image 1: Green zone has a Star at relative position ~8?
-    // Let's assume Starts + global indices +8 relative.
+    // Standard safe spots are start positions (0, 13, 26, 39) plus cells 8 steps after each start (8, 21, 34, 47).
     private func isSafeZone(_ index: Int) -> Bool {
         let safeIndices = [0, 8, 13, 21, 26, 34, 39, 47]
         return safeIndices.contains(index)

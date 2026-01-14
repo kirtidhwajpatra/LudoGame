@@ -5,7 +5,7 @@ struct LudoTokenView: View {
     let cellSize: CGFloat
     var isMovable: Bool = false
     var shouldDim: Bool = false
-    var isCaptured: Bool = false // Emotional Cues: captured state
+    var isCaptured: Bool = false
     
     @State private var isBreathing = false
     
@@ -80,22 +80,20 @@ struct LudoTokenView: View {
                 .scaleEffect(rippleScale)
                 .opacity(rippleOpacity)
             
-            // Pure Emoji Design (Clean, No Background)
-            // Dynamic Sizing based on location
+                // Dynamic sizing based on location
             let isYard = (token.position == .yard)
             let scale: CGFloat = isYard ? 1.5 : 1.1
             
             Text(emoji(for: token.player))
                 .font(.system(size: cellSize * scale))
-                .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 2) // Subtle lift
-                // Micro-interactions (Breathing & Tiny Rotation) + Impact Pulse
-                // Excitement: Breathe deeper/faster if near home
+                .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 2)
+                // Breathing animation based on progress
                 .scaleEffect(impactScale * (isBreathing ? (progress > 0.85 ? 1.1 : 1.03) : 1.0))
                 .rotationEffect(.degrees((isBreathing ? (progress > 0.85 ? 3 : 1) : -1) + celebrationRotation))
-                // Bounce if movable (Active "Pick Me") OR Celebration Jump
+                // Bounce if movable or celebrating
                 .offset(y: (isMovable ? -self.cellSize * 0.1 : 0) + celebrationJump)
                 .animation(isMovable ? .easeInOut(duration: 0.5).repeatForever(autoreverses: true) : .default, value: isMovable)
-                // Captured: Desaturate ("Drain")
+                // Captured visual state
                 .saturation(isCaptured ? 0.0 : 1.0)
                 .scaleEffect(isCaptured ? 0.8 : 1.0)
                 .animation(.linear(duration: 0.2), value: isCaptured)
